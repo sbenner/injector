@@ -61,10 +61,11 @@ public class Injector<T> {
         return classes;
     }
 
-    private void buildBeanList(Class clazz) throws Exception{
-        if(clazz.getAnnotations().length==0)return;
+    private void buildBeanList(Class clazz) throws Exception {
+
+        if (clazz.getAnnotations().length == 0) return;
         final Method[] methods = clazz.getDeclaredMethods();
-        T configuration = (T)clazz.newInstance();
+        T configuration = (T) clazz.newInstance();
         for (final Method method : methods) {
             if (isPublicInstance(method) &&
                     method.isAnnotationPresent(Bean.class)
@@ -78,13 +79,13 @@ public class Injector<T> {
                 }
                 final String beanName = b.name().length() > 1 ? b.name() :
                         method.getName();
-                beansMap.put(beanName,  bean);
+                beansMap.put(beanName, bean);
             }
         }
 
     }
 
-    public Map getBeanMap(){
+    public Map getBeanMap() {
         return beansMap;
     }
 
@@ -92,7 +93,7 @@ public class Injector<T> {
         return Modifier.isPublic(method.getModifiers()) && !Modifier.isStatic(method.getModifiers());
     }
 
-    private Function<T,T> reflectGetter(final Method method) throws Throwable {
+    private Function<T, T> reflectGetter(final Method method) throws Throwable {
         final MethodType invokedType = MethodType.methodType(Function.class);
         final MethodHandles.Lookup lookup = MethodHandles.lookup();
         final MethodHandle implementation = lookup.unreflect(method);
@@ -102,7 +103,7 @@ public class Injector<T> {
                 MethodType.methodType(Object.class, Object.class),
                 implementation,
                 implementation.type());
-        return (Function<T,T>)site.getTarget().invokeExact();
+        return (Function<T, T>) site.getTarget().invokeExact();
     }
 
 
@@ -112,7 +113,7 @@ public class Injector<T> {
             if (clazz.isAnnotationPresent(Configuration.class)) {
                 buildBeanList(clazz);
             }
-            if(clazz.isAnnotationPresent(Service.class)){
+            if (clazz.isAnnotationPresent(Service.class)) {
                 services.add(clazz);
             }
         }
@@ -135,24 +136,45 @@ public class Injector<T> {
         return classes;
     }
 
+    private String getBeanName(String typeName) {
+        return typeName.substring(0, 1).toLowerCase()
+                + typeName.substring(1);
+    }
 
     public void inject(Class t) {
-        if(!t.isAnnotationPresent(Service.class)) return;
+        if (!t.isAnnotationPresent(Service.class)) {
+            return;
+        } else {
+
+            Service service = (Service) t.getAnnotation(Service.class);
+            if (service.set()) return;
+
+
+        }
 
         final Field[] fields = t.getDeclaredFields();
+        String serviceName = getBeanName(t.getSimpleName());
+        Optional service = Optional.ofNullable(beansMap.get(serviceName));
+
         for (Field f : fields) {
             if (f.isAnnotationPresent(Autowire.class)) {
                 try {
-                    Optional o = Optional.ofNullable(
-                            beansMap.get(f.getName()));
                     f.setAccessible(true);
-                    Object service = t.newInstance();
-                    f.set(service, o.get());
-                    String serviceName =t.getSimpleName();
-                    serviceName = serviceName.substring(0,1).toLowerCase()
-                            +serviceName.substring(1);
-                    beansMap.put(serviceName,(T)service);
-                    inject(o.get().getClass());
+                    if (service.isPresent() &&
+                            Optional.ofNullable(f.get(service.get())).isPresent()) return;
+                    if (!service.isPresent()) service = Optional.of(t.newInstance());
+
+                    String typeName = getBeanName(f.getName());
+                    Optional o = Optional.ofNullable(beansMap.get(typeName));
+                    if (!o.isPresent())
+                        o = Optional.ofNullable(beansMap.get(getBeanName(f.getType().getSimpleName())));
+
+
+                    if (o.isPresent()) {
+                        f.set(service.get(), o.get());
+                        beansMap.put(serviceName, (T) service.get());
+                     //   inject(o.get().getClass());
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

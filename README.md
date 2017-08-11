@@ -1,3 +1,3 @@
 # injector
-Simple Dependency Injection tool
+Simple Dependency Injection library
 based on annotations, reflection and method handlers

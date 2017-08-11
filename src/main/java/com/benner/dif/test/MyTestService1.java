@@ -1,6 +1,7 @@
 package com.benner.dif.test;
 
 import com.benner.dif.utils.annotations.Autowire;
+import com.benner.dif.utils.annotations.Service;
 
 /**
  * Created with IntelliJ IDEA.
@@ -8,40 +9,29 @@ import com.benner.dif.utils.annotations.Autowire;
  * Date: 8/11/17
  * Time: 2:12 AM
  */
+@Service
 public class MyTestService1 {
 
     @Autowire
-    AnotherService anotherService;
+    MyTestService myTestService;
 
-    private String propertyAA;
-    private String propertyBB;
+
 
     public MyTestService1(){
-        setPropertyAA("cool thing12");
-        setPropertyBB("nasty thing12");
     }
 
-    public void printNameOfA(){
-        System.out.println(getPropertyAA());
-    }
-
-    public void userPropertyOfAnotherClass(){
-        anotherService.runPrint();
+    public void printClassName(){
+        System.out.println(this.getClass().getName());
     }
 
     public String getPropertyAA() {
-        return propertyAA;
+        return myTestService.getPropertyA();
     }
 
-    public void setPropertyAA(String propertyAA) {
-        this.propertyAA = propertyAA;
-    }
 
     public String getPropertyBB() {
-        return propertyBB;
+        return myTestService.getPropertyB();
     }
 
-    public void setPropertyBB(String propertyBB) {
-        this.propertyBB = propertyBB;
-    }
+
 }
