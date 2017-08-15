@@ -12,12 +12,14 @@ import java.lang.invoke.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Created with IntelliJ IDEA.
@@ -71,15 +73,14 @@ public class Injector<T> {
             if (isPublicInstance(method) &&
                     method.isAnnotationPresent(Bean.class)
                     ) {
-                Bean b = method.getAnnotation(Bean.class);
+                //Bean b = method.getAnnotation(Bean.class);
                 final T bean;
                 try {
                     bean = reflectGetter(method).apply(configuration);
                 } catch (final Throwable e) {
                     throw new ExceptionInInitializerError(e);
                 }
-                final String beanName = b.name().length() > 1 ? b.name() :
-                        method.getName();
+                final String beanName = getBeanName(bean.getClass().getSimpleName());
                 beansMap.put(beanName, bean);
             }
         }
@@ -142,14 +143,50 @@ public class Injector<T> {
                 + typeName.substring(1);
     }
 
-    public void inject(Class t) {
+    private T findInstance(Class t) {
+        for (Map.Entry<String, T> e : beansMap.entrySet()) {
+            if (t.isInstance(e.getValue()) || t.isAssignableFrom(e.getValue().getClass())) {
+                return e.getValue();
+            }
+        }
+        return null;
+    }
+
+    public void initServices(List<Class> services) {
+
+        for (Class t : services) {
+            if (!t.isAnnotationPresent(Service.class))
+                continue;
+
+            String serviceName = getBeanName((t.getSimpleName()));
+
+            Optional service = Optional.ofNullable(beansMap.get(serviceName));
+            if (!service.isPresent()) {
+                service = Optional.ofNullable(findInstance(t));
+            }
+
+            if (!service.isPresent()) {
+                try {
+                    service = Optional.ofNullable(t.newInstance());
+                    beansMap.put(serviceName, (T) service.get());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+
+    private void inject(Class t) {
         if (!t.isAnnotationPresent(Service.class)) {
             return;
         }
 
-        final Field[] fields = t.getDeclaredFields();
         String serviceName = getBeanName(t.getSimpleName());
         Optional service = Optional.ofNullable(beansMap.get(serviceName));
+
+
+        final Field[] fields = t.getDeclaredFields();
 
         for (Field f : fields) {
             if (f.isAnnotationPresent(Autowire.class)) {
@@ -157,16 +194,32 @@ public class Injector<T> {
                     f.setAccessible(true);
                     if (service.isPresent() &&
                             Optional.ofNullable(f.get(service.get())).isPresent()) return;
-                    if (!service.isPresent()) service = Optional.of(t.newInstance());
+                    if (!service.isPresent()) {
+                        service = Optional.of(t.newInstance());
+                    }
 
                     String typeName = getBeanName(f.getName());
                     Optional o = Optional.ofNullable(beansMap.get(typeName));
                     if (!o.isPresent()) {
-                        o = Optional.ofNullable(beansMap.get(getBeanName(f.getType().getSimpleName())));
-                        if (!o.isPresent()) {
-                            o = Optional.ofNullable(f.getType().newInstance());
-                        }
+                        o = Optional.ofNullable(findInstance(f.getType()));
                     }
+                    if (!o.isPresent()) {
+                        o = Optional.ofNullable(beansMap.get(getBeanName(f.getType().getSimpleName())));
+                    }
+
+                    if(!o.isPresent()&&List.class.isAssignableFrom(f.getType())){
+                        Class type = (Class)((ParameterizedType)f.getGenericType()).getActualTypeArguments()[0];
+                        o = Optional.ofNullable(beansMap.values().stream().
+                                filter(i->
+                                        type.isAssignableFrom(i.getClass())
+                                )
+                                .collect(Collectors.toList()));
+                    }
+
+                    if (!o.isPresent()) {
+                        o = Optional.ofNullable(f.getType().newInstance());
+                    }
+
 
                     if (o.isPresent()) {
                         f.set(service.get(), o.get());
