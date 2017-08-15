@@ -1,5 +1,6 @@
 package com.benner.dif.utils;
 
+
 import com.benner.dif.utils.annotations.Autowire;
 import com.benner.dif.utils.annotations.Bean;
 import com.benner.dif.utils.annotations.Configuration;
@@ -144,12 +145,6 @@ public class Injector<T> {
     public void inject(Class t) {
         if (!t.isAnnotationPresent(Service.class)) {
             return;
-        } else {
-
-            Service service = (Service) t.getAnnotation(Service.class);
-            if (service.set()) return;
-
-
         }
 
         final Field[] fields = t.getDeclaredFields();
@@ -166,14 +161,17 @@ public class Injector<T> {
 
                     String typeName = getBeanName(f.getName());
                     Optional o = Optional.ofNullable(beansMap.get(typeName));
-                    if (!o.isPresent())
+                    if (!o.isPresent()) {
                         o = Optional.ofNullable(beansMap.get(getBeanName(f.getType().getSimpleName())));
-
+                        if (!o.isPresent()) {
+                            o = Optional.ofNullable(f.getType().newInstance());
+                        }
+                    }
 
                     if (o.isPresent()) {
                         f.set(service.get(), o.get());
                         beansMap.put(serviceName, (T) service.get());
-                     //   inject(o.get().getClass());
+                        //   inject(o.get().getClass());
                     }
                 } catch (Exception e) {
                     e.printStackTrace();

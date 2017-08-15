@@ -16,6 +16,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE) //can use in method only.
 public @interface Service {
     public String name() default "";
-    public boolean set() default false;
 
 }
