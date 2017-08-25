@@ -68,7 +68,8 @@ public class Injector<T> {
 
         if (clazz.getAnnotations().length == 0) return;
         final Method[] methods = clazz.getDeclaredMethods();
-        T configuration = (T) clazz.newInstance();
+        T configuration = findInstance(clazz);
+        if(configuration==null)configuration = (T) clazz.newInstance();
         for (final Method method : methods) {
             if (isPublicInstance(method) &&
                     method.isAnnotationPresent(Bean.class)
@@ -113,6 +114,7 @@ public class Injector<T> {
         List<Class> services = new ArrayList<>();
         for (Class clazz : classes) {
             if (clazz.isAnnotationPresent(Configuration.class)) {
+                inject(clazz);
                 buildBeanList(clazz);
             }
             if (clazz.isAnnotationPresent(Service.class)) {
@@ -178,7 +180,9 @@ public class Injector<T> {
 
 
     private void inject(Class t) {
-        if (!t.isAnnotationPresent(Service.class)) {
+        if (!t.isAnnotationPresent(Service.class)
+                &&
+                !t.isAnnotationPresent(Configuration.class)) {
             return;
         }
 
@@ -207,10 +211,10 @@ public class Injector<T> {
                         o = Optional.ofNullable(beansMap.get(getBeanName(f.getType().getSimpleName())));
                     }
 
-                    if(!o.isPresent()&&List.class.isAssignableFrom(f.getType())){
-                        Class type = (Class)((ParameterizedType)f.getGenericType()).getActualTypeArguments()[0];
+                    if (!o.isPresent() && List.class.isAssignableFrom(f.getType())) {
+                        Class type = (Class) ((ParameterizedType) f.getGenericType()).getActualTypeArguments()[0];
                         o = Optional.ofNullable(beansMap.values().stream().
-                                filter(i->
+                                filter(i ->
                                         type.isAssignableFrom(i.getClass())
                                 )
                                 .collect(Collectors.toList()));
