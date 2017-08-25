@@ -29,15 +29,25 @@ public class TestService {
 
     public static void main(String[] args) {
         try {
-            com.benner.dif.utils.Injector i = Injector.getInstance();
-            List<Class> scannedPackage = (List<Class>) i.scanForClasses("com.benner.dif.test");
-            List<Class> serviceList = i.configureBeansAndGetServices(scannedPackage);
-            i.injectBeans(serviceList);
+            com.benner.dif.utils.Injector injector = Injector.getInstance();
 
-            MyTestService1 myTestService1 = (MyTestService1)i.getBeanMap().get("myTestService1");
+//   if we need args[] or Properties for @Configuration class we set a bean
+//            ImportOptions options =
+//                    new ImportOptions(args);
+            //Properties p = new Properties();
+            //
+//            injector.getBeanMap().put("importOptions",options);
+//            //inject options where needed
+//
+            List<Class> scannedPackage = (List<Class>) injector.scanForClasses("com.benner.dif.test");
+            List<Class> services = injector.configureBeansAndGetServices(scannedPackage);
+            injector.initServices(services);
+            injector.injectBeans(services);
+
+            MyTestService1 myTestService1 = (MyTestService1)injector.getBeanMap().get("myTestService1");
 
 
-            TestService testService = (TestService)i.getBeanMap().get("testService");
+            TestService testService = (TestService)injector.getBeanMap().get("testService");
 
             System.out.println(testService.testService.getPropertyA());
             System.out.println(myTestService1.getPropertyAA());
